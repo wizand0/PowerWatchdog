@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        app:cardCornerRadius="12dp"
+        android:layout_marginBottom="16dp"
+        android:elevation="6dp">
+
+        <TextView
+            android:id="@+id/tvIndicatorText"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="ПИТАНИЕ НОРМА"
+            android:textSize="22sp"
+            android:textStyle="bold"/>
+    </androidx.cardview.widget.CardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnStartStop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="СТАРТ МОНИТОРИНГА"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:id="@+id/tvServiceStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Служба остановлена"
+        android:textSize="16sp"/>
+
+</LinearLayout>
