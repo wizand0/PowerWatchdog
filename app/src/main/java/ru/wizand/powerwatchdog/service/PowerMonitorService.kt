@@ -1,5 +1,6 @@
 package ru.wizand.powerwatchdog.service
 
+import android.Manifest
 import android.app.*
 import android.content.*
 import android.media.RingtoneManager
@@ -8,6 +9,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import ru.wizand.powerwatchdog.R
 import ru.wizand.powerwatchdog.data.database.AppDatabase
@@ -19,11 +21,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import android.content.pm.ServiceInfo
 
 class PowerMonitorService : Service() {
 
     private val binder = LocalBinder()
-
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private lateinit var repository: PowerRepository
 
@@ -39,33 +41,51 @@ class PowerMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
         val db = AppDatabase.getInstance(this)
         repository = PowerRepository(db.powerEventDao())
+
         createNotificationChannel()
+
         registerReceiver(powerReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
         })
-        startForeground(Constants.NOTIFICATION_ID, buildNotification("Мониторинг электросети активен"))
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+        val notification = buildNotification("Мониторинг электросети активен")
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            startForeground(
+                Constants.NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(Constants.NOTIFICATION_ID, notification)
+        }
+
+        return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
         try {
             unregisterReceiver(powerReceiver)
-        } catch (e: Exception) {
-            // ignore
-        }
+        } catch (_: Exception) {}
     }
 
+    @RequiresPermission(Manifest.permission.VIBRATE)
     private fun handlePowerState(context: Context, state: PowerState) {
+
         val ts = System.currentTimeMillis()
-        // insert to DB
+
         serviceScope.launch {
             repository.insert(PowerEvent(type = state, timestamp = ts))
         }
 
-        // If disconnected -> play sound and vibrate depending on prefs
         if (state == PowerState.DISCONNECTED) {
             val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
             val playSound = prefs.getBoolean(Constants.PREF_SOUND, true)
@@ -73,16 +93,21 @@ class PowerMonitorService : Service() {
 
             if (playSound) {
                 try {
-                    val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                    val r = RingtoneManager.getRingtone(applicationContext, notification)
-                    r.play()
+                    val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    RingtoneManager.getRingtone(applicationContext, uri).play()
                 } catch (_: Exception) {}
             }
+
             if (doVibrate) {
                 try {
                     val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+                        vibrator.vibrate(
+                            VibrationEffect.createOneShot(
+                                500,
+                                VibrationEffect.DEFAULT_AMPLITUDE
+                            )
+                        )
                     } else {
                         @Suppress("DEPRECATION")
                         vibrator.vibrate(500)
@@ -91,8 +116,11 @@ class PowerMonitorService : Service() {
             }
         }
 
-        // Update ongoing notification to reflect current state
-        val text = if (state == PowerState.CONNECTED) "ПИТАНИЕ: НОРМА" else "ПИТАНИЕ: ОТКЛЮЧЕНО!"
+        val text = if (state == PowerState.CONNECTED)
+            "ПИТАНИЕ: НОРМА"
+        else
+            "ПИТАНИЕ: ОТКЛЮЧЕНО!"
+
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(Constants.NOTIFICATION_ID, buildNotification(text))
     }
@@ -115,7 +143,7 @@ class PowerMonitorService : Service() {
         return NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL_ID)
             .setContentTitle("Power Watchdog")
             .setContentText(contentText)
-            .setSmallIcon(R.drawable.ic_power) // add a drawable named ic_power or use existing
+            .setSmallIcon(R.drawable.ic_power)
             .setContentIntent(pi)
             .setOngoing(true)
             .build()
@@ -127,7 +155,6 @@ class PowerMonitorService : Service() {
         fun getService(): PowerMonitorService = this@PowerMonitorService
     }
 
-    // Expose a simple API to stop the foreground service
     fun stopServiceSelf() {
         stopForeground(true)
         stopSelf()
