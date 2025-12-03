@@ -1,7 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
-    id 'kotlin-kapt'
+    id 'com.google.devtools.ksp'
 }
 
 android {
@@ -50,33 +50,33 @@ dependencies {
     androidTestImplementation libs.androidx.espresso.core
 
     // Kotlin
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.10"
+    implementation libs.kotlin.stdlib
 
 
     // Lifecycle & ViewModel
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.2'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.2'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+    implementation libs.androidx.lifecycle.livedata.ktx
+    implementation libs.androidx.lifecycle.viewmodel.ktx
+    implementation libs.androidx.lifecycle.runtime.ktx
 
     // Navigation
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.7.0'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.7.0'
+    implementation libs.androidx.navigation.fragment.ktx
+    implementation libs.androidx.navigation.ui.ktx
 
     // Room
-    implementation "androidx.room:room-runtime:2.6.1"
-    kapt "androidx.room:room-compiler:2.6.1"
-    implementation "androidx.room:room-ktx:2.6.1"
+    implementation libs.androidx.room.runtime
+    ksp libs.androidx.room.compiler
+    implementation libs.androidx.room.ktx
 
     // Coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation libs.kotlinx.coroutines.core
+    implementation libs.kotlinx.coroutines.android
 
     // RecyclerView
-    implementation 'androidx.recyclerview:recyclerview:1.3.0'
-    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation libs.androidx.recyclerview
+    implementation libs.androidx.cardview
 
     // Notifications compat
-    implementation 'androidx.core:core:1.12.0'
+    implementation libs.androidx.core
 
 
 }
