@@ -38,6 +38,8 @@ class PowerMonitorService : Service() {
     private lateinit var repository: PowerRepository
     private var currentSessionId: Long? = null  // To track the current open session
 
+    data class TestResult(val success: Boolean, val message: String)
+
     private val powerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (context == null || intent == null) return
@@ -217,43 +219,52 @@ class PowerMonitorService : Service() {
                 } catch (_: Exception) {}
             }
 
-            // New: Telegram notification on DISCONNECTED
-            serviceScope.launch(Dispatchers.IO) {
-                val telegramEnabled = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
-                val botToken = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
-                val chatId = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, null)
-                if (telegramEnabled && !botToken.isNullOrEmpty() && !chatId.isNullOrEmpty()) {
-                    try {
-                        // Format message: Use string resource with placeholders
-                        val formattedTime = java.text.SimpleDateFormat.getDateTimeInstance().format(java.util.Date(ts)) // Assumes TimeUtils.format is similar; adjust if needed
-                        val message = getString(R.string.telegram_power_disconnected, formattedTime, android.os.Build.MODEL)
-                        sendTelegramMessage(botToken, chatId, message)
-                    } catch (e: Exception) {
-                        Log.e("PowerMonitorService", "Error sending Telegram message", e)
-                    }
-                }
-            }
+            // Note: Telegram notification block moved below, after all state processing
         }
 
+        // Build the notification text based on state
         val text = if (state == PowerState.CONNECTED)
             "ПИТАНИЕ: НОРМА"
         else
             "ПИТАНИЕ: ОТКЛЮЧЕНО!"
 
+        // Show Android notification
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(Constants.NOTIFICATION_ID, buildNotification(text))
+
+        // NEW: Universal Telegram notification for both CONNECTED and DISCONNECTED
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        serviceScope.launch(Dispatchers.IO) {
+            val telegramEnabled = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
+            val botToken = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
+            val chatId = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, null)
+            if (telegramEnabled && !botToken.isNullOrEmpty() && !chatId.isNullOrEmpty()) {
+                try {
+                    val formattedTime = java.text.SimpleDateFormat.getDateTimeInstance().format(java.util.Date(ts))
+                    val message = if (state == PowerState.CONNECTED) {
+                        getString(R.string.telegram_power_connected, formattedTime, android.os.Build.MODEL)
+                    } else {
+                        getString(R.string.telegram_power_disconnected, formattedTime, android.os.Build.MODEL)
+                    }
+                    sendTelegramMessage(botToken, chatId, message)
+                } catch (e: Exception) {
+                    Log.e("PowerMonitorService", "Error sending Telegram message", e)
+                }
+            }
+        }
     }
 
     // New: Helper method to send Telegram message (async in IO)
-    private fun sendTelegramMessage(token: String, chatId: String, message: String) {
-        try {
+    private fun sendTelegramMessage(token: String, chatId: String, message: String): TestResult {
+        return try {
             val url = URL("https://api.telegram.org/bot$token/sendMessage")
             val conn = url.openConnection() as HttpURLConnection
             conn.apply {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
                 doOutput = true
-                // Removed: setRequestProperty("Content-Length", "0")  // HttpURLConnection calculates it automatically
+                connectTimeout = 10000
+                readTimeout = 10000
             }
 
             val postData = "chat_id=$chatId&text=${java.net.URLEncoder.encode(message, "UTF-8")}"
@@ -263,11 +274,22 @@ class PowerMonitorService : Service() {
                     dos.flush()
                 }
             }
-            val response = conn.inputStream.bufferedReader().readText()  // Consume response
-            Log.d("PowerMonitorService", "Telegram response: $response")  // Optional: for debugging
-            conn.disconnect()
+
+            val responseCode = conn.responseCode
+            if (responseCode == 200) {
+                val response = conn.inputStream.bufferedReader().use { it.readText() }
+                Log.d("PowerMonitorService", "Telegram response: $response")
+                conn.disconnect()
+                TestResult(true, "Сообщение отправлено")
+            } else {
+                val errorResponse = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Нет деталей ошибки"
+                Log.e("PowerMonitorService", "Error: HTTP $responseCode - $errorResponse")
+                conn.disconnect()
+                TestResult(false, "Ошибка отправки: HTTP $responseCode")
+            }
         } catch (e: Exception) {
             Log.e("PowerMonitorService", "Error sending Telegram message", e)
+            TestResult(false, "Ошибка сети: ${e.localizedMessage ?: "Неизвестная ошибка"}")
         }
     }
 

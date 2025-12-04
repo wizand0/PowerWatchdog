@@ -12,6 +12,8 @@ import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class TestResult(val success: Boolean, val message: String)
+
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repo: PowerRepository
     private val prefs = application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
@@ -32,7 +34,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         prefs.edit().putBoolean(Constants.PREF_VIBRATE, enabled).apply()
     }
 
-    // New: Telegram-related methods
+    // Telegram-related methods
     fun getBotToken(): String? = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
     fun getChatId(): String? = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, null)
     fun isTelegramEnabled(): Boolean = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
@@ -49,15 +51,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         prefs.edit().putBoolean(Constants.PREF_TELEGRAM_ENABLED, enabled).apply()
     }
 
-    // New: Send test Telegram message
-    suspend fun sendTestTelegramMessage() {
-        withContext(Dispatchers.IO) {
+    // Send test Telegram message with result
+    suspend fun sendTestTelegramMessage(): TestResult {
+        return withContext(Dispatchers.IO) {
             try {
                 val token = getBotToken()
                 val chatId = getChatId()
                 if (token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
-                    Log.w("SettingsViewModel", "Bot token or chat ID is empty")
-                    return@withContext
+                    return@withContext TestResult(false, "Токен бота или Chat ID пусты. Заполните поля.")
                 }
 
                 val message = "Тестовое уведомление от Power Watchdog"
@@ -66,7 +67,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 conn.apply {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                    doOutput = true 
+                    doOutput = true
+                    connectTimeout = 10000  // 10 seconds
+                    readTimeout = 10000     // 10 seconds
                 }
 
                 val postData = "chat_id=$chatId&text=${java.net.URLEncoder.encode(message, "UTF-8")}"
@@ -76,11 +79,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         dos.flush()
                     }
                 }
-                val response = conn.inputStream.bufferedReader().readText()
-                Log.d("SettingsViewModel", "Telegram test response: $response")
-                conn.disconnect()
+
+                val responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val response = conn.inputStream.bufferedReader().readText()
+                    Log.d("SettingsViewModel", "Telegram test response: $response")
+                    conn.disconnect()
+                    return@withContext TestResult(true, "Тестовое сообщение отправлено успешно!")
+                } else {
+                    val errorResponse = conn.errorStream?.bufferedReader()?.readText() ?: "Нет деталей ошибки"
+                    Log.e("SettingsViewModel", "Error: HTTP $responseCode - $errorResponse")
+                    val userErrorMsg = when (responseCode) {
+                        400 -> "Неверный Chat ID. Проверьте ID и убедитесь, что бот добавлен в чат."
+                        401 -> "Неверный токен бота. Проверьте токен."
+                        403 -> "Бот заблокирован или нет разрешений на отправку сообщений."
+                        else -> "Ошибка сети или API: $errorResponse"
+                    }
+                    conn.disconnect()
+                    return@withContext TestResult(false, userErrorMsg)
+                }
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error sending test Telegram message", e)
+                return@withContext TestResult(false, "Ошибка сети: ${e.localizedMessage ?: "Неизвестная ошибка"}")
             }
         }
     }

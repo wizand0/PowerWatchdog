@@ -3,7 +3,7 @@
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="telegram_power_disconnected">Power Watchdog: ОБРЫВ ПИТАНИЯ в %1$s. Устройство: %2$s</string>
-
+    <string name="telegram_power_connected">Питание восстановлено в %1$s на устройстве %2$s</string>
     <!-- Settings Screen -->
     <string name="settings_sound_alert">Звуковое оповещение при аварии</string>
     <string name="settings_vibration_alert">Вибрация при аварии</string>

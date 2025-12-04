@@ -12,6 +12,7 @@ import ru.wizand.powerwatchdog.utils.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsFragment : Fragment() {
 
@@ -73,15 +74,20 @@ class SettingsFragment : Fragment() {
             val token = vm.getBotToken()
             val chatId = vm.getChatId()
             if (!telegramEnabled || token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
-                // Show error: e.g., Toast or Alert
-                android.widget.Toast.makeText(requireContext(), "Сначала включите Telegram и введите токен/CHAT ID", android.widget.Toast.LENGTH_SHORT).show()
+                // More specific warning
+                android.widget.Toast.makeText(requireContext(), "Сначала включите Telegram и введите токен бота и Chat ID", android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
-            // Launch coroutine for test send
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                vm.sendTestTelegramMessage()
+
+            // Launch in Main scope to show toasts on UI thread
+            CoroutineScope(Dispatchers.Main).launch {
+                val result = withContext(Dispatchers.IO) { vm.sendTestTelegramMessage() }
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    result.message,
+                    if (result.success) android.widget.Toast.LENGTH_SHORT else android.widget.Toast.LENGTH_LONG
+                ).show()
             }
-            android.widget.Toast.makeText(requireContext(), "Тест отправлен (проверьте Telegram)", android.widget.Toast.LENGTH_SHORT).show()
         }
 
         vb.btnClearLog.setOnClickListener {
