@@ -1,0 +1,55 @@
+<resources>
+    <string name="app_name">PowerWatchdog</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="telegram_power_disconnected">Power Watchdog: ОБРЫВ ПИТАНИЯ в %1$s. Устройство: %2$s</string>
+    <string name="telegram_power_connected">Питание восстановлено в %1$s на устройстве %2$s</string>
+    <!-- Settings Screen -->
+    <string name="settings_sound_alert">Звуковое оповещение при аварии</string>
+    <string name="settings_vibration_alert">Вибрация при аварии</string>
+    <string name="settings_telegram_title">Настройки Telegram уведомлений</string>
+    <string name="settings_bot_token_label">Bot API Token (бот токен)</string>
+    <string name="settings_bot_token_hint">Вставьте токен бота</string>
+    <string name="settings_chat_id_label">Chat ID</string>
+    <string name="settings_chat_id_hint">Вставьте Chat ID (например, -1234567890 для группы или 123456789 для чата)</string>
+    <string name="settings_send_telegram">Отправлять уведомления в Telegram</string>
+    <string name="settings_clear_log">Очистить журнал событий</string>
+    <string name="settings_clear_log_title">Очистить журнал</string>
+    <string name="settings_clear_log_message">Вы уверены, что хотите удалить все записи журнала?</string>
+    <string name="settings_clear_log_confirm">Да</string>
+    <string name="settings_clear_log_cancel">Отмена</string>
+    <string name="settings_about_title">О программе</string>
+    <string name="settings_about_text">Power Watchdog v1.7.3. by wizand0.</string>
+    <string name="settings_test_telegram">Отправить тестовое уведомление</string>
+    <string name="text_need_permissions">Внимание: без разрешений система может принудительно закрыть приложение</string>
+    <string name="monitor_is_active">Мониторинг электросети активен</string>
+    <string name="temperature_accum">Температура аккумулятора: %.1f°C</string>
+    <!-- New strings for HomeFragment -->
+    <string name="indicator_power_normal">ПИТАНИЕ НОРМА</string>
+    <string name="indicator_power_failure">АВАРИЯ! РАБОТА ОТ БАТАРЕИ</string>
+    <string name="service_active">Служба активна</string>
+    <string name="service_stopped">Служба остановлена</string>
+    <string name="btn_stop_monitoring">СТОП МОНИТОРИНГА</string>
+    <string name="btn_start_monitoring">СТАРТ МОНИТОРИНГА</string>
+    <!-- New strings for LogAdapter -->
+    <string name="network_connected">Сеть подключена</string>
+    <string name="network_disconnected">Сеть отключена</string>
+    <!-- New strings for SettingsFragment -->
+    <string name="telegram_enable_first">Сначала включите Telegram и введите токен бота и Chat ID</string>
+    <!-- New strings for SettingsViewModel -->
+    <string name="bot_token_empty">Токен бота или Chat ID пусты. Заполните поля.</string>
+    <string name="test_message">Тестовое уведомление от Power Watchdog</string>
+    <string name="test_success">Тестовое сообщение отправлено успешно!</string>
+    <string name="telegram_invalid_chat_id">Неверный Chat ID. Проверьте ID и убедитесь, что бот добавлен в чат.</string>
+    <string name="telegram_invalid_token">Неверный токен бота. Проверьте токен.</string>
+    <string name="telegram_bot_blocked">Бот заблокирован или нет разрешений на отправку сообщений.</string>
+    <string name="telegram_api_error">Ошибка сети или API: </string>
+    <string name="telegram_network_error">Ошибка сети: </string>
+    <!-- New strings for MainActivity -->
+    <string name="permissions_title">Требуются разрешения</string>
+    <string name="permissions_message">Приложению нужны разрешения для:\n- Уведомлений: чтобы показывать статус питания.\n- Вибрации: для оповещения при отключении питания.\n- Foreground service: для постоянного мониторинга в фоне.\n\nПодтвердите для корректной работы.</string>
+    <string name="permissions_grant">Разрешить</string>
+    <!-- New strings for fragment_home.xml -->
+    <string name="timer_default">00:00:00</string>
+    <string name="battery_temp_default">Температура аккумулятора: --°C</string>
+</resources>

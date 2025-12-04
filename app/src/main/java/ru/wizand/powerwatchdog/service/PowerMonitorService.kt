@@ -82,7 +82,7 @@ class PowerMonitorService : Service() {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 // Show warning notification and log
                 val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                val notification = buildNotification("Внимание: без разрешений система может принудительно закрыть приложение")
+                val notification = buildNotification(getString(R.string.text_need_permissions))
                 nm.notify(Constants.NOTIFICATION_ID + 1, notification)  // Use a different ID for warning
                 prefs.edit().putBoolean("perm_warning_shown", true).apply()
                 // Service continues; do not stop
@@ -91,7 +91,7 @@ class PowerMonitorService : Service() {
             }
         }
 
-        val notification = buildNotification("Мониторинг электросети активен")
+        val notification = buildNotification(getString(R.string.monitor_is_active))
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             startForeground(

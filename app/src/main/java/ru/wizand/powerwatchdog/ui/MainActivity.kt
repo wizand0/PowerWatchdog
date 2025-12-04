@@ -56,9 +56,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPermissionsDialog(prefs: SharedPreferences) {
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Требуются разрешения")
-            .setMessage("Приложению нужны разрешения для:\n- Уведомлений: чтобы показывать статус питания.\n- Вибрации: для оповещения при отключении питания.\n- Foreground service: для постоянного мониторинга в фоне.\n\nПодтвердите для корректной работы.")
-            .setPositiveButton("Разрешить") { _, _ ->
+            .setTitle(getString(R.string.permissions_title))
+            .setMessage(getString(R.string.permissions_message))
+            .setPositiveButton(getString(R.string.permissions_grant)) { _, _ ->
                 // Request POST_NOTIFICATIONS permission
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
                 // Mark first run as done

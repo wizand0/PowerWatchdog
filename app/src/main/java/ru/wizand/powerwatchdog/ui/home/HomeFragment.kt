@@ -20,14 +20,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import android.os.BatteryManager
+import android.os.Build
+import androidx.annotation.RequiresApi
 
 class HomeFragment : Fragment() {
 
     private var _vb: FragmentHomeBinding? = null
     private val vb get() = _vb!!
     private val vm: HomeViewModel by viewModels()
-
-    private var isServiceBound = false
     private var serviceIntent: Intent? = null
     private var timerJob: Job? = null
     private var batteryTempJob: Job? = null
@@ -53,22 +53,23 @@ class HomeFragment : Fragment() {
         return vb.root
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         // Observe power state (reactive)
         vm.powerState.observe(viewLifecycleOwner) { state ->
             if (state == PowerState.CONNECTED) {
                 vb.cardIndicator.setCardBackgroundColor(requireContext().getColor(R.color.green_700))
-                vb.tvIndicatorText.text = "ПИТАНИЕ НОРМА"
+                vb.tvIndicatorText.text = getString(R.string.indicator_power_normal)
             } else {
                 vb.cardIndicator.setCardBackgroundColor(requireContext().getColor(R.color.red_700))
-                vb.tvIndicatorText.text = "АВАРИЯ! РАБОТА ОТ БАТАРЕИ"
+                vb.tvIndicatorText.text = getString(R.string.indicator_power_failure)
             }
         }
 
         // Observe service status
         vm.isServiceActive.observe(viewLifecycleOwner) { active ->
-            vb.tvServiceStatus.text = if (active) "Служба активна" else "Служба остановлена"
-            vb.btnStartStop.text = if (active) "СТОП МОНИТОРИНГА" else "СТАРТ МОНИТОРИНГА"
+            vb.tvServiceStatus.text = if (active) getString(R.string.service_active) else getString(R.string.service_stopped)
+            vb.btnStartStop.text = if (active) getString(R.string.btn_stop_monitoring) else getString(R.string.btn_start_monitoring)
         }
 
         vb.btnStartStop.setOnClickListener {
@@ -143,7 +144,7 @@ class HomeFragment : Fragment() {
         val intent = requireContext().registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) ?: -1
         val c = temp / 10.0
-        vb.tvBatteryTemp.text = "Температура аккумулятора: %.1f°C".format(c)
+        vb.tvBatteryTemp.text = getString(R.string.temperature_accum).format(c)
     }
 
     private fun formatElapsedTime(totalSeconds: Long): String {
@@ -153,6 +154,7 @@ class HomeFragment : Fragment() {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun startService() {
         val ctx = requireContext().applicationContext
         // start foreground service

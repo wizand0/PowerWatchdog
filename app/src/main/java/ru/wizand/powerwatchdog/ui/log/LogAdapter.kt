@@ -25,8 +25,8 @@ class LogAdapter : ListAdapter<PowerEvent, LogAdapter.ViewHolder>(Diff()) {
         with(holder.vb) {
             tvTime.text = TimeUtils.format(item.timestamp)
             tvDesc.text = when (item.type) {
-                PowerState.CONNECTED -> "Сеть подключена"
-                PowerState.DISCONNECTED -> "Сеть отключена"
+                PowerState.CONNECTED -> holder.itemView.context.getString(R.string.network_connected)
+                PowerState.DISCONNECTED -> holder.itemView.context.getString(R.string.network_disconnected)
             }
             ivIcon.setImageResource(
                 if (item.type == PowerState.CONNECTED) R.drawable.ic_plug else R.drawable.ic_battery

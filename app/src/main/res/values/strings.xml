@@ -2,23 +2,54 @@
     <string name="app_name">PowerWatchdog</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="telegram_power_disconnected">Power Watchdog: ОБРЫВ ПИТАНИЯ в %1$s. Устройство: %2$s</string>
-    <string name="telegram_power_connected">Питание восстановлено в %1$s на устройстве %2$s</string>
+    <string name="telegram_power_disconnected">Power Watchdog: POWER FAILURE at %1$s. Device: %2$s</string>
+    <string name="telegram_power_connected">Power restored at %1$s on device %2$s</string>
     <!-- Settings Screen -->
-    <string name="settings_sound_alert">Звуковое оповещение при аварии</string>
-    <string name="settings_vibration_alert">Вибрация при аварии</string>
-    <string name="settings_telegram_title">Настройки Telegram уведомлений</string>
-    <string name="settings_bot_token_label">Bot API Token (бот токен)</string>
-    <string name="settings_bot_token_hint">Вставьте токен бота</string>
+    <string name="settings_sound_alert">Sound alert on failure</string>
+    <string name="settings_vibration_alert">Vibration on failure</string>
+    <string name="settings_telegram_title">Telegram Notification Settings</string>
+    <string name="settings_bot_token_label">Bot API Token</string>
+    <string name="settings_bot_token_hint">Paste bot token</string>
     <string name="settings_chat_id_label">Chat ID</string>
-    <string name="settings_chat_id_hint">Вставьте Chat ID (например, -1234567890 для группы или 123456789 для чата)</string>
-    <string name="settings_send_telegram">Отправлять уведомления в Telegram</string>
-    <string name="settings_clear_log">Очистить журнал событий</string>
-    <string name="settings_clear_log_title">Очистить журнал</string>
-    <string name="settings_clear_log_message">Вы уверены, что хотите удалить все записи журнала?</string>
-    <string name="settings_clear_log_confirm">Да</string>
-    <string name="settings_clear_log_cancel">Отмена</string>
-    <string name="settings_about_title">О программе</string>
-    <string name="settings_about_text">Power Watchdog v1.0. Инструмент главного инженера комплекса.</string>
+    <string name="settings_chat_id_hint">Paste Chat ID (e.g. -1234567890 for groups or 123456789 for private chats)</string>
+    <string name="settings_send_telegram">Send notifications to Telegram</string>
+    <string name="settings_clear_log">Clear event log</string>
+    <string name="settings_clear_log_title">Clear log</string>
+    <string name="settings_clear_log_message">Are you sure you want to delete all log entries?</string>
+    <string name="settings_clear_log_confirm">Yes</string>
+    <string name="settings_clear_log_cancel">Cancel</string>
+    <string name="settings_about_title">About</string>
+    <string name="settings_about_text">Power Watchdog v1.7.3. by wizand0.</string>
     <string name="settings_test_telegram">Send test notification</string>
+    <string name="text_need_permissions">Warning: without permissions the system might forcibly close the app</string>
+    <string name="monitor_is_active">Power monitoring active</string>
+    <string name="temperature_accum">Battery temperature: %.1f°C</string>
+    <!-- New strings for HomeFragment -->
+    <string name="indicator_power_normal">POWER NORMAL</string>
+    <string name="indicator_power_failure">FAILURE! RUNNING ON BATTERY</string>
+    <string name="service_active">Service active</string>
+    <string name="service_stopped">Service stopped</string>
+    <string name="btn_stop_monitoring">STOP MONITORING</string>
+    <string name="btn_start_monitoring">START MONITORING</string>
+    <!-- New strings for LogAdapter -->
+    <string name="network_connected">Network connected</string>
+    <string name="network_disconnected">Network disconnected</string>
+    <!-- New strings for SettingsFragment -->
+    <string name="telegram_enable_first">First enable Telegram and enter Bot Token and Chat ID</string>
+    <!-- New strings for SettingsViewModel -->
+    <string name="bot_token_empty">Bot Token or Chat ID is empty. Please fill in the fields.</string>
+    <string name="test_message">Test notification from Power Watchdog</string>
+    <string name="test_success">Test message sent successfully!</string>
+    <string name="telegram_invalid_chat_id">Invalid Chat ID. Check the ID and ensure the bot is added to the chat.</string>
+    <string name="telegram_invalid_token">Invalid Bot Token. Please check the token.</string>
+    <string name="telegram_bot_blocked">Bot is blocked or lacks permission to send messages.</string>
+    <string name="telegram_api_error">Network or API error: </string>
+    <string name="telegram_network_error">Network error: </string>
+    <!-- New strings for MainActivity -->
+    <string name="permissions_title">Permissions Required</string>
+    <string name="permissions_message">The app needs permissions for:\n- Notifications: to show power status.\n- Vibration: to alert on power failure.\n- Foreground service: for continuous background monitoring.\n\nPlease confirm for correct operation.</string>
+    <string name="permissions_grant">Allow</string>
+    <!-- New strings for fragment_home.xml -->
+    <string name="timer_default">00:00:00</string>
+    <string name="battery_temp_default">Battery temperature: --°C</string>
 </resources>

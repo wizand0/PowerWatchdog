@@ -75,13 +75,13 @@ class SettingsFragment : Fragment() {
             val chatId = vm.getChatId()
             if (!telegramEnabled || token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
                 // More specific warning
-                android.widget.Toast.makeText(requireContext(), "Сначала включите Telegram и введите токен бота и Chat ID", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(requireContext(), getString(R.string.telegram_enable_first), android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
             // Launch in Main scope to show toasts on UI thread
             CoroutineScope(Dispatchers.Main).launch {
-                val result = withContext(Dispatchers.IO) { vm.sendTestTelegramMessage() }
+                val result = withContext(Dispatchers.IO) { vm.sendTestTelegramMessage(requireContext()) }
                 android.widget.Toast.makeText(
                     requireContext(),
                     result.message,

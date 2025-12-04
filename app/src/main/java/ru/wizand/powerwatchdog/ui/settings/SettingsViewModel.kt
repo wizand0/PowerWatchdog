@@ -1,6 +1,7 @@
 package ru.wizand.powerwatchdog.ui.settings
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import ru.wizand.powerwatchdog.data.database.AppDatabase
@@ -11,6 +12,7 @@ import kotlinx.coroutines.withContext
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import ru.wizand.powerwatchdog.R
 
 data class TestResult(val success: Boolean, val message: String)
 
@@ -52,16 +54,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Send test Telegram message with result
-    suspend fun sendTestTelegramMessage(): TestResult {
+    suspend fun sendTestTelegramMessage(context: Context): TestResult {
         return withContext(Dispatchers.IO) {
             try {
                 val token = getBotToken()
                 val chatId = getChatId()
                 if (token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
-                    return@withContext TestResult(false, "Токен бота или Chat ID пусты. Заполните поля.")
+                    return@withContext TestResult(false, context.getString(R.string.bot_token_empty))
                 }
 
-                val message = "Тестовое уведомление от Power Watchdog"
+                val message = context.getString(R.string.test_message)
                 val url = URL("https://api.telegram.org/bot$token/sendMessage")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.apply {
@@ -85,22 +87,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     val response = conn.inputStream.bufferedReader().readText()
                     Log.d("SettingsViewModel", "Telegram test response: $response")
                     conn.disconnect()
-                    return@withContext TestResult(true, "Тестовое сообщение отправлено успешно!")
+                    return@withContext TestResult(true, context.getString(R.string.test_success))
                 } else {
                     val errorResponse = conn.errorStream?.bufferedReader()?.readText() ?: "Нет деталей ошибки"
                     Log.e("SettingsViewModel", "Error: HTTP $responseCode - $errorResponse")
                     val userErrorMsg = when (responseCode) {
-                        400 -> "Неверный Chat ID. Проверьте ID и убедитесь, что бот добавлен в чат."
-                        401 -> "Неверный токен бота. Проверьте токен."
-                        403 -> "Бот заблокирован или нет разрешений на отправку сообщений."
-                        else -> "Ошибка сети или API: $errorResponse"
+                        400 -> context.getString(R.string.telegram_invalid_chat_id)
+                        401 -> context.getString(R.string.telegram_invalid_token)
+                        403 -> context.getString(R.string.telegram_bot_blocked)
+                        else -> "${context.getString(R.string.telegram_api_error)}$errorResponse"
                     }
                     conn.disconnect()
                     return@withContext TestResult(false, userErrorMsg)
                 }
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error sending test Telegram message", e)
-                return@withContext TestResult(false, "Ошибка сети: ${e.localizedMessage ?: "Неизвестная ошибка"}")
+                return@withContext TestResult(false, "${context.getString(R.string.telegram_network_error)}${e.localizedMessage ?: "Неизвестная ошибка"}")
             }
         }
     }
