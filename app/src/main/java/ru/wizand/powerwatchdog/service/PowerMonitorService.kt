@@ -246,26 +246,29 @@ class PowerMonitorService : Service() {
 
     // New: Helper method to send Telegram message (async in IO)
     private fun sendTelegramMessage(token: String, chatId: String, message: String) {
-        val url = URL("https://api.telegram.org/bot$token/sendMessage")
-        val conn = url.openConnection() as HttpURLConnection
-        conn.apply {
-            requestMethod = "POST"
-            setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            doOutput = true
-            setRequestProperty("Content-Length", "0")
-        }
+        try {
+            val url = URL("https://api.telegram.org/bot$token/sendMessage")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                doOutput = true
+                // Removed: setRequestProperty("Content-Length", "0")  // HttpURLConnection calculates it automatically
+            }
 
-        val postData = "chat_id=$chatId&text=${java.net.URLEncoder.encode(message, "UTF-8")}"
-        conn.apply {
-            outputStream.use { os ->
+            val postData = "chat_id=$chatId&text=${java.net.URLEncoder.encode(message, "UTF-8")}"
+            conn.outputStream.use { os ->
                 DataOutputStream(os).use { dos ->
                     dos.writeBytes(postData)
                     dos.flush()
                 }
             }
-            inputStream.bufferedReader().readText() // Consume response
+            val response = conn.inputStream.bufferedReader().readText()  // Consume response
+            Log.d("PowerMonitorService", "Telegram response: $response")  // Optional: for debugging
+            conn.disconnect()
+        } catch (e: Exception) {
+            Log.e("PowerMonitorService", "Error sending Telegram message", e)
         }
-        conn.disconnect()
     }
 
     private fun createNotificationChannel() {

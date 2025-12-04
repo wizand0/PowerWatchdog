@@ -20,4 +20,5 @@
     <string name="settings_clear_log_cancel">Отмена</string>
     <string name="settings_about_title">О программе</string>
     <string name="settings_about_text">Power Watchdog v1.0. Инструмент главного инженера комплекса.</string>
+    <string name="settings_test_telegram">Send test notification</string>
 </resources>

@@ -68,6 +68,22 @@ class SettingsFragment : Fragment() {
             }
         }
 
+        vb.btnTestTelegram.setOnClickListener {
+            val telegramEnabled = vm.isTelegramEnabled()
+            val token = vm.getBotToken()
+            val chatId = vm.getChatId()
+            if (!telegramEnabled || token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
+                // Show error: e.g., Toast or Alert
+                android.widget.Toast.makeText(requireContext(), "Сначала включите Telegram и введите токен/CHAT ID", android.widget.Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // Launch coroutine for test send
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                vm.sendTestTelegramMessage()
+            }
+            android.widget.Toast.makeText(requireContext(), "Тест отправлен (проверьте Telegram)", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
         vb.btnClearLog.setOnClickListener {
             AlertDialog.Builder(requireContext())
                 .setTitle(getString(R.string.settings_clear_log_title))
