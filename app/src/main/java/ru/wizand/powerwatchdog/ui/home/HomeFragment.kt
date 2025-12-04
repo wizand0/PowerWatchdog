@@ -19,6 +19,7 @@ import ru.wizand.powerwatchdog.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import android.os.BatteryManager
 
 class HomeFragment : Fragment() {
 
@@ -29,6 +30,7 @@ class HomeFragment : Fragment() {
     private var isServiceBound = false
     private var serviceIntent: Intent? = null
     private var timerJob: Job? = null
+    private var batteryTempJob: Job? = null
 
     private val powerStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -93,6 +95,14 @@ class HomeFragment : Fragment() {
 
         // Start elapsed time counter
         startElapsedTimeCounter()
+
+        // Start battery temperature updater
+        startBatteryTempUpdater()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateBatteryTemp()
     }
 
     private fun startElapsedTimeCounter() {
@@ -119,6 +129,23 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun startBatteryTempUpdater() {
+        batteryTempJob?.cancel()
+        batteryTempJob = lifecycleScope.launch {
+            while (isActive) {
+                updateBatteryTemp()
+                delay(30000) // update every 30 seconds
+            }
+        }
+    }
+
+    private fun updateBatteryTemp() {
+        val intent = requireContext().registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val temp = intent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1) ?: -1
+        val c = temp / 10.0
+        vb.tvBatteryTemp.text = "Температура аккумулятора: %.1f°C".format(c)
+    }
+
     private fun formatElapsedTime(totalSeconds: Long): String {
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
@@ -142,6 +169,7 @@ class HomeFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         timerJob?.cancel()
+        batteryTempJob?.cancel()
         try {
             requireActivity().unregisterReceiver(powerStatusReceiver)
         } catch (_: Exception) {}

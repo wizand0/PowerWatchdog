@@ -25,7 +25,7 @@ class SettingsFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Load prefs
+        // Load existing prefs
         val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         vb.switchSound.isChecked = prefs.getBoolean(Constants.PREF_SOUND, true)
         vb.switchVibrate.isChecked = prefs.getBoolean(Constants.PREF_VIBRATE, true)
@@ -37,21 +37,73 @@ class SettingsFragment : Fragment() {
             vm.setVibrateEnabled(isChecked)
         }
 
+        // Load Telegram settings
+        vb.editBotToken.setText(vm.getBotToken())
+        vb.editChatId.setText(vm.getChatId())
+        vb.switchTelegram.isChecked = vm.isTelegramEnabled()
+        validateTelegramSettings() // Initial validation
+
+        vb.editBotToken.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val token = vb.editBotToken.text.toString()
+                vm.saveBotToken(token)
+                validateTelegramSettings() // Validate after saving
+            }
+        }
+        vb.editChatId.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val chatId = vb.editChatId.text.toString()
+                vm.saveChatId(chatId)
+                validateTelegramSettings() // Validate after saving
+            }
+        }
+        vb.switchTelegram.setOnCheckedChangeListener { _, isChecked ->
+            // Only allow enabling if both fields are non-empty
+            if (isChecked && (!isBotTokenValid() || !isChatIdValid())) {
+                vb.switchTelegram.isChecked = false
+                vm.setTelegramEnabled(false)
+                showValidationError()
+            } else {
+                vm.setTelegramEnabled(isChecked)
+            }
+        }
+
         vb.btnClearLog.setOnClickListener {
             AlertDialog.Builder(requireContext())
-                .setTitle("Очистить журнал")
-                .setMessage("Вы уверены, что хотите удалить все записи журнала?")
-                .setPositiveButton("Да") { _, _ ->
+                .setTitle(getString(R.string.settings_clear_log_title))
+                .setMessage(getString(R.string.settings_clear_log_message))
+                .setPositiveButton(getString(R.string.settings_clear_log_confirm)) { _, _ ->
                     CoroutineScope(Dispatchers.IO).launch {
                         vm.clearLog()
                     }
                 }
-                .setNegativeButton("Отмена", null)
+                .setNegativeButton(getString(R.string.settings_clear_log_cancel), null)
                 .show()
         }
 
-        vb.cardAboutTitle.text = "О программе"
-        vb.cardAboutText.text = "Power Watchdog v1.0. Инструмент главного инженера комплекса."
+        vb.cardAboutTitle.text = getString(R.string.settings_about_title)
+        vb.cardAboutText.text = getString(R.string.settings_about_text)
+    }
+
+    private fun isBotTokenValid(): Boolean {
+        return vb.editBotToken.text.toString().isNotBlank()
+    }
+
+    private fun isChatIdValid(): Boolean {
+        return vb.editChatId.text.toString().isNotBlank()
+    }
+
+    private fun validateTelegramSettings() {
+        val isValid = isBotTokenValid() && isChatIdValid()
+        vb.switchTelegram.isEnabled = isValid
+        if (vm.isTelegramEnabled() && !isValid) {
+            vm.setTelegramEnabled(false)
+            vb.switchTelegram.isChecked = false
+        }
+    }
+
+    private fun showValidationError() {
+        // Optional: Show a toast or snackbar if needed, but for now, just disable the switch
     }
 
     override fun onDestroyView() {

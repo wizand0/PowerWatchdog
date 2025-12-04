@@ -19,7 +19,7 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="Звуковое оповещение при аварии"/>
+                android:text="@string/settings_sound_alert"/>
             <Switch
                 android:id="@+id/switchSound"
                 android:layout_width="wrap_content"
@@ -36,9 +36,75 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="Вибрация при аварии"/>
+                android:text="@string/settings_vibration_alert"/>
             <Switch
                 android:id="@+id/switchVibrate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
+
+        <!-- Telegram notification settings -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_telegram_title"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_bot_token_label"/>
+            <EditText
+                android:id="@+id/editBotToken"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:inputType="textPassword"
+                android:hint="@string/settings_bot_token_hint"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_chat_id_label"/>
+            <EditText
+                android:id="@+id/editChatId"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:inputType="numberSigned"
+                android:hint="@string/settings_chat_id_hint"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:gravity="center_vertical">
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_send_telegram"/>
+            <Switch
+                android:id="@+id/switchTelegram"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"/>
         </LinearLayout>
@@ -47,7 +113,7 @@
             android:id="@+id/btnClearLog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Очистить журнал событий"
+            android:text="@string/settings_clear_log"
             android:layout_marginTop="12dp"/>
 
         <androidx.cardview.widget.CardView

@@ -10,12 +10,11 @@ import kotlinx.coroutines.withContext
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val repo: PowerRepository
-
     private val prefs = application.getSharedPreferences(Constants.PREFS_NAME, android.content.Context.MODE_PRIVATE)
 
     init {
-        val dao = AppDatabase.getInstance(application).powerEventDao()
-        repo = PowerRepository(dao)
+        val db = AppDatabase.getInstance(application)
+        repo = PowerRepository(db.powerEventDao(), db.powerSessionDao())
     }
 
     fun isSoundEnabled(): Boolean = prefs.getBoolean(Constants.PREF_SOUND, true)
@@ -27,6 +26,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun setVibrateEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(Constants.PREF_VIBRATE, enabled).apply()
+    }
+
+    // New: Telegram-related methods
+    fun getBotToken(): String? = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
+    fun getChatId(): String? = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, null)
+    fun isTelegramEnabled(): Boolean = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
+
+    fun saveBotToken(token: String) {
+        prefs.edit().putString(Constants.PREF_TELEGRAM_TOKEN, token).apply()
+    }
+
+    fun saveChatId(id: String) {
+        prefs.edit().putString(Constants.PREF_TELEGRAM_CHAT_ID, id).apply()
+    }
+
+    fun setTelegramEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(Constants.PREF_TELEGRAM_ENABLED, enabled).apply()
     }
 
     suspend fun clearLog() {

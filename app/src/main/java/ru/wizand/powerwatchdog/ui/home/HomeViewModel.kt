@@ -25,11 +25,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         .map { list -> list.firstOrNull()?.type }
 
     init {
-        val dao = AppDatabase.getInstance(application).powerEventDao()
-        repo = PowerRepository(dao)
+        val db = AppDatabase.getInstance(application)
+        repo = PowerRepository(db.powerEventDao(), db.powerSessionDao())
         viewModelScope.launch {
             // initialize UI with latest DB state if exists
-            val last = dao.getAllDesc().firstOrNull()
+            val last = db.powerEventDao().getAllDesc().firstOrNull()
             val state = last?.firstOrNull()?.type
             state?.let { _powerState.postValue(it) }
         }

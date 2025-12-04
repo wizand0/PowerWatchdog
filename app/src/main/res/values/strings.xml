@@ -2,4 +2,22 @@
     <string name="app_name">PowerWatchdog</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="telegram_power_disconnected">Power Watchdog: ОБРЫВ ПИТАНИЯ в %1$s. Устройство: %2$s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_sound_alert">Звуковое оповещение при аварии</string>
+    <string name="settings_vibration_alert">Вибрация при аварии</string>
+    <string name="settings_telegram_title">Настройки Telegram уведомлений</string>
+    <string name="settings_bot_token_label">Bot API Token (бот токен)</string>
+    <string name="settings_bot_token_hint">Вставьте токен бота</string>
+    <string name="settings_chat_id_label">Chat ID</string>
+    <string name="settings_chat_id_hint">Вставьте Chat ID (например, -1234567890 для группы или 123456789 для чата)</string>
+    <string name="settings_send_telegram">Отправлять уведомления в Telegram</string>
+    <string name="settings_clear_log">Очистить журнал событий</string>
+    <string name="settings_clear_log_title">Очистить журнал</string>
+    <string name="settings_clear_log_message">Вы уверены, что хотите удалить все записи журнала?</string>
+    <string name="settings_clear_log_confirm">Да</string>
+    <string name="settings_clear_log_cancel">Отмена</string>
+    <string name="settings_about_title">О программе</string>
+    <string name="settings_about_text">Power Watchdog v1.0. Инструмент главного инженера комплекса.</string>
 </resources>

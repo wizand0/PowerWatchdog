@@ -12,8 +12,8 @@ class LogViewModel(application: Application) : AndroidViewModel(application) {
     val events = AppDatabase.getInstance(application).powerEventDao().getAllDesc().asLiveData()
 
     init {
-        val dao = AppDatabase.getInstance(application).powerEventDao()
-        repo = PowerRepository(dao)
+        val db = AppDatabase.getInstance(application)
+        repo = PowerRepository(db.powerEventDao(), db.powerSessionDao())
     }
 
     suspend fun clearAll() {
