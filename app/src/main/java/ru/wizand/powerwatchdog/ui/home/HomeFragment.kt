@@ -16,6 +16,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import ru.wizand.powerwatchdog.R
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 class HomeFragment : Fragment() {
 
@@ -25,6 +28,7 @@ class HomeFragment : Fragment() {
 
     private var isServiceBound = false
     private var serviceIntent: Intent? = null
+    private var timerJob: Job? = null
 
     private val powerStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -86,6 +90,40 @@ class HomeFragment : Fragment() {
                 state?.let { vm.setPowerState(it) }
             }
         }
+
+        // Start elapsed time counter
+        startElapsedTimeCounter()
+    }
+
+    private fun startElapsedTimeCounter() {
+        timerJob?.cancel()
+        timerJob = lifecycleScope.launch {
+            val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+
+            while (isActive) {
+                val isRunning = prefs.getBoolean(Constants.PREF_SERVICE_RUNNING, false)
+                val startTs = prefs.getLong(Constants.PREF_SERVICE_START_TS, 0L)
+
+                if (isRunning && startTs > 0) {
+                    val elapsedMs = System.currentTimeMillis() - startTs
+                    val elapsedSeconds = elapsedMs / 1000
+                    vb.tvElapsed.text = formatElapsedTime(elapsedSeconds)
+                    vb.tvElapsed.visibility = View.VISIBLE
+                } else {
+                    vb.tvElapsed.text = "00:00:00"
+                    vb.tvElapsed.visibility = View.GONE
+                }
+
+                delay(1000)
+            }
+        }
+    }
+
+    private fun formatElapsedTime(totalSeconds: Long): String {
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 
     private fun startService() {
@@ -103,6 +141,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        timerJob?.cancel()
         try {
             requireActivity().unregisterReceiver(powerStatusReceiver)
         } catch (_: Exception) {}

@@ -67,11 +67,28 @@ class PowerMonitorService : Service() {
             startForeground(Constants.NOTIFICATION_ID, notification)
         }
 
+        // Save service start timestamp and running flag
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putLong(Constants.PREF_SERVICE_START_TS, System.currentTimeMillis())
+            putBoolean(Constants.PREF_SERVICE_RUNNING, true)
+            apply()
+        }
+
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        // Clear service running flags
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putBoolean(Constants.PREF_SERVICE_RUNNING, false)
+            remove(Constants.PREF_SERVICE_START_TS)
+            apply()
+        }
+
         try {
             unregisterReceiver(powerReceiver)
         } catch (_: Exception) {}
@@ -156,6 +173,14 @@ class PowerMonitorService : Service() {
     }
 
     fun stopServiceSelf() {
+        // Clear service running flags
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            putBoolean(Constants.PREF_SERVICE_RUNNING, false)
+            remove(Constants.PREF_SERVICE_START_TS)
+            apply()
+        }
+
         stopForeground(true)
         stopSelf()
     }
