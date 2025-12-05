@@ -107,7 +107,32 @@ class SettingsFragment : Fragment() {
         vb.cardAboutTitle.text = getString(R.string.settings_about_title)
         val aboutText = getString(R.string.settings_about_text)
         val version = ru.wizand.powerwatchdog.BuildConfig.VERSION_NAME
-        vb.cardAboutText.text = "$aboutText\nv$version"
+//        vb.cardAboutText.text = "$aboutText\nv$version"
+
+        // 2. Ссылки
+        val githubUrl = "https://github.com/wizand0/PowerWatchdog"
+        val feedbackUrl = "mailto:makandrei@gmail.com"
+
+        // 3. Формируем HTML-строку
+        // <br> - перенос строки
+        // <b> - жирный текст
+        // <a href="..."> - активная ссылка
+        val htmlContent = """
+        $aboutText<br>
+        <b>Ver:</b> $version<br><br>
+        GitHub: <a href="$githubUrl">PowerWatchdog Repo</a><br>
+        Feedback: <a href="$feedbackUrl">Написать предложение</a>
+    """.trimIndent()
+
+        // 4. Устанавливаем текст как HTML
+        vb.cardAboutText.text = androidx.core.text.HtmlCompat.fromHtml(
+            htmlContent,
+            androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT
+        )
+
+        // 5. Делаем ссылки кликабельными
+        vb.cardAboutText.movementMethod = android.text.method.LinkMovementMethod.getInstance()
+
     }
 
     private fun isBotTokenValid(): Boolean {

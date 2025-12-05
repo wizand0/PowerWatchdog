@@ -19,7 +19,7 @@
     <string name="settings_clear_log_confirm">Да</string>
     <string name="settings_clear_log_cancel">Отмена</string>
     <string name="settings_about_title">О программе</string>
-    <string name="settings_about_text">Power Watchdog v1.7.3. by wizand0.</string>
+    <string name="settings_about_text">Power Watchdog by wizand0.</string>
     <string name="settings_test_telegram">Отправить тестовое уведомление</string>
     <string name="text_need_permissions">Внимание: без разрешений система может принудительно закрыть приложение</string>
     <string name="monitor_is_active">Мониторинг электросети активен</string>

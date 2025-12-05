@@ -19,7 +19,7 @@
     <string name="settings_clear_log_confirm">Yes</string>
     <string name="settings_clear_log_cancel">Cancel</string>
     <string name="settings_about_title">About</string>
-    <string name="settings_about_text">Power Watchdog v1.7.3. by wizand0.</string>
+    <string name="settings_about_text">Power Watchdog by wizand0.</string>
     <string name="settings_test_telegram">Send test notification</string>
     <string name="text_need_permissions">Warning: without permissions the system might forcibly close the app</string>
     <string name="monitor_is_active">Power monitoring active</string>
