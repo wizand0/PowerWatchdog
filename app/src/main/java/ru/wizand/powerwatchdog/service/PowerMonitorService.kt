@@ -103,6 +103,8 @@ class PowerMonitorService : Service() {
             startForeground(Constants.NOTIFICATION_ID, notification)
         }
 
+        scheduleWatchdog()
+
         // Save service start timestamp and running flag
         prefs.edit().apply {
             putLong(Constants.PREF_SERVICE_START_TS, System.currentTimeMillis())
@@ -126,6 +128,28 @@ class PowerMonitorService : Service() {
         }
 
         return START_STICKY
+
+
+    }
+
+    private fun scheduleWatchdog() {
+        val alarmIntent = Intent(this, WatchdogReceiver::class.java)
+        val pi = PendingIntent.getBroadcast(
+            this,
+            0,
+            alarmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+        val interval = 5 * 60 * 1000L // каждые 5 минут
+
+        am.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + interval,
+            pi
+        )
     }
 
     override fun onDestroy() {

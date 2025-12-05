@@ -83,17 +83,18 @@ class MainActivity : AppCompatActivity() {
     private fun checkAndResetServiceFlags() {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         val wasRunning = prefs.getBoolean(Constants.PREF_SERVICE_RUNNING, false)
+        val auto = prefs.getBoolean("pref_autorestart", false)
 
-        // If prefs say service was running but we're in cold start (service not actually running),
-        // it means the process was killed. Reset the flags.
-        if (wasRunning) {
-            // We assume on cold start the service is not running
-            // (A more robust check would be to query ActivityManager, but this is simpler)
+        // Если сервис считался работающим, но мы в cold start — не сбрасываем,
+        // потому что RestartServiceReceiver должен попытаться восстановить его при BOOT или POWER_CONNECTED.
+        // Однако можно сбросить временные поля, если auto == false.
+        if (!auto && wasRunning) {
             prefs.edit().apply {
                 putBoolean(Constants.PREF_SERVICE_RUNNING, false)
                 remove(Constants.PREF_SERVICE_START_TS)
                 apply()
             }
         }
+        // иначе — ничего не делаем: даём ресиверам/системе попытаться перезапустить сервис
     }
 }

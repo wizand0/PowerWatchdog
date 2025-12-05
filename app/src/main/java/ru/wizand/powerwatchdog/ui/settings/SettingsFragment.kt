@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ru.wizand.powerwatchdog.BuildConfig
 
 class SettingsFragment : Fragment() {
 
@@ -104,7 +105,9 @@ class SettingsFragment : Fragment() {
         }
 
         vb.cardAboutTitle.text = getString(R.string.settings_about_title)
-        vb.cardAboutText.text = getString(R.string.settings_about_text)
+        val aboutText = getString(R.string.settings_about_text)
+        val version = ru.wizand.powerwatchdog.BuildConfig.VERSION_NAME
+        vb.cardAboutText.text = "$aboutText\nv$version"
     }
 
     private fun isBotTokenValid(): Boolean {

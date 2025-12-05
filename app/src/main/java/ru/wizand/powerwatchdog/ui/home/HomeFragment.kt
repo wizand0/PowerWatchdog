@@ -12,6 +12,7 @@ import ru.wizand.powerwatchdog.data.model.PowerState
 import ru.wizand.powerwatchdog.service.PowerMonitorService
 import ru.wizand.powerwatchdog.utils.Constants
 import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -21,7 +22,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AlertDialog
 
 class HomeFragment : Fragment() {
 
@@ -79,6 +84,34 @@ class HomeFragment : Fragment() {
                 startService()
             }
         }
+
+        val pm = requireContext().getSystemService(Context.POWER_SERVICE) as PowerManager
+        val btnBattery = vb.btnBatteryOpt
+
+        btnBattery.setOnClickListener {
+            if (!pm.isIgnoringBatteryOptimizations(requireContext().packageName)) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:${requireContext().packageName}")
+                }
+                startActivity(intent)
+            } else {
+                Toast.makeText(requireContext(),
+                    getString(R.string.battery_opt_already_excluded), Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("MIUI предотвращает автозапуск")
+            .setMessage(
+                "На устройствах Xiaomi/Redmi важно вручную разрешить автозапуск.\n\n" +
+                        "Открой:\n" +
+                        "Настройки → Приложения → Управление приложениями → PowerWatchdog → Автозапуск → Включить.\n\n" +
+                        "Также:\n" +
+                        "Настройки → Батарея → Экономия → Другие приложения → PowerWatchdog → Без ограничений."
+            )
+            .setPositiveButton("OK", null)
+            .show()
+
 
         // Register local power connected/disconnected receiver to update indicator reactively (in addition to DB events)
         val filter = IntentFilter().apply {
@@ -159,12 +192,28 @@ class HomeFragment : Fragment() {
         val ctx = requireContext().applicationContext
         // start foreground service
         ctx.startForegroundService(serviceIntent)
+
+        val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("pref_service_running", true)
+            .putLong(Constants.PREF_SERVICE_START_TS, System.currentTimeMillis())
+            .putBoolean("pref_autorestart", true) // Включаем авто-восстановление
+            .apply()
+
         vm.setServiceActive(true)
     }
 
     private fun stopService() {
         val ctx = requireContext().applicationContext
         ctx.stopService(serviceIntent)
+
+        val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("pref_autorestart", false) // Пользователь отключил — не восстанавливаем автоматически
+            .putBoolean(Constants.PREF_SERVICE_RUNNING, false)
+            .remove(Constants.PREF_SERVICE_START_TS)
+            .apply()
+
         vm.setServiceActive(false)
     }
 

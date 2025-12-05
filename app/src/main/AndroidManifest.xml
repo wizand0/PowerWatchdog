@@ -36,6 +36,20 @@
             android:foregroundServiceType="dataSync">
         </service>
 
+        <receiver
+            android:name=".service.RestartServiceReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.ACTION_MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.POWER_CONNECTED"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".service.WatchdogReceiver"
+            android:exported="true"/>
+
     </application>
 
 </manifest>

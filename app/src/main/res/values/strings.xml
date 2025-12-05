@@ -52,4 +52,6 @@
     <!-- New strings for fragment_home.xml -->
     <string name="timer_default">00:00:00</string>
     <string name="battery_temp_default">Battery temperature: --°C</string>
+    <string name="battery_opt_already_excluded">App is already excluded from optimization</string>
+    <string name="ignore_battery_optimizations">Ignore battery optimizations</string>
 </resources>

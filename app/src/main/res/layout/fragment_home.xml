@@ -68,6 +68,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvElapsed" />
 
+    <Button
+        android:id="@+id/btnBatteryOpt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:padding="16dp"
+        android:text="@string/ignore_battery_optimizations"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnStartStop" />
+
+
     <TextView
         android:id="@+id/tvBatteryTemp"
         android:layout_width="wrap_content"
@@ -77,6 +90,6 @@
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnStartStop" />
+        app:layout_constraintTop_toBottomOf="@id/btnBatteryOpt" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
