@@ -136,7 +136,10 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+
         updateBatteryTemp()
+
+        vm.refreshServiceState()
     }
 
     private fun startElapsedTimeCounter() {

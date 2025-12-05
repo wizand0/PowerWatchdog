@@ -9,6 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <!-- Sound Switch -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -26,6 +27,7 @@
                 android:layout_height="wrap_content"/>
         </LinearLayout>
 
+        <!-- Vibrate Switch -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -51,6 +53,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="8dp"/>
 
+        <!-- Bot Token -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -72,27 +75,33 @@
                 android:autofillHints="password"/>
         </LinearLayout>
 
+        <!-- Chat ID (UPDATED for Multiple Lines) -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="8dp"
-            android:gravity="center_vertical">
+            android:gravity="top">
             <TextView
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
                 android:text="@string/settings_chat_id_label"/>
+            <!-- Changed inputType to textMultiLine and added lines/gravity -->
             <EditText
                 android:id="@+id/editChatId"
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:inputType="numberSigned"
+                android:inputType="textMultiLine|textNoSuggestions"
+                android:lines="3"
+                android:gravity="top|start"
                 android:hint="@string/settings_chat_id_hint"
                 android:autofillHints="username"/>
         </LinearLayout>
 
+        <!-- Telegram Enable Switch -->
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -110,7 +119,6 @@
                 android:layout_height="wrap_content"/>
         </LinearLayout>
 
-        <!-- New: Test Telegram Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTestTelegram"
             android:layout_width="match_parent"
@@ -126,6 +134,7 @@
             android:text="@string/settings_clear_log"
             android:layout_marginTop="12dp"/>
 
+        <!-- About Card -->
         <androidx.cardview.widget.CardView
             android:layout_marginTop="20dp"
             app:cardCornerRadius="8dp"

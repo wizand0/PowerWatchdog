@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.view.*
+import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import ru.wizand.powerwatchdog.R
@@ -13,7 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ru.wizand.powerwatchdog.BuildConfig
 
 class SettingsFragment : Fragment() {
 
@@ -41,7 +41,7 @@ class SettingsFragment : Fragment() {
 
         // Load Telegram settings
         vb.editBotToken.setText(vm.getBotToken())
-        vb.editChatId.setText(vm.getChatId())
+        vb.editChatId.setText(vm.getRawChatIdString()) // Load raw string
         vb.switchTelegram.isChecked = vm.isTelegramEnabled()
         validateTelegramSettings() // Initial validation
 
@@ -49,14 +49,14 @@ class SettingsFragment : Fragment() {
             if (!hasFocus) {
                 val token = vb.editBotToken.text.toString()
                 vm.saveBotToken(token)
-                validateTelegramSettings() // Validate after saving
+                validateTelegramSettings()
             }
         }
         vb.editChatId.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
                 val chatId = vb.editChatId.text.toString()
-                vm.saveChatId(chatId)
-                validateTelegramSettings() // Validate after saving
+                vm.saveChatId(chatId) // Save raw string
+                validateTelegramSettings()
             }
         }
         vb.switchTelegram.setOnCheckedChangeListener { _, isChecked ->
@@ -73,16 +73,23 @@ class SettingsFragment : Fragment() {
         vb.btnTestTelegram.setOnClickListener {
             val telegramEnabled = vm.isTelegramEnabled()
             val token = vm.getBotToken()
-            val chatId = vm.getChatId()
-            if (!telegramEnabled || token.isNullOrEmpty() || chatId.isNullOrEmpty()) {
-                // More specific warning
+            val chatIds = vm.getChatIdList() // Get parsed list
+
+            if (!telegramEnabled || token.isNullOrEmpty() || chatIds.isEmpty()) {
                 android.widget.Toast.makeText(requireContext(), getString(R.string.telegram_enable_first), android.widget.Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
             // Launch in Main scope to show toasts on UI thread
             CoroutineScope(Dispatchers.Main).launch {
+                vb.btnTestTelegram.isEnabled = false
+                vb.btnTestTelegram.text = "Sending..."
+
                 val result = withContext(Dispatchers.IO) { vm.sendTestTelegramMessage(requireContext()) }
+
+                vb.btnTestTelegram.isEnabled = true
+                vb.btnTestTelegram.text = getString(R.string.settings_test_telegram)
+
                 android.widget.Toast.makeText(
                     requireContext(),
                     result.message,
@@ -104,35 +111,36 @@ class SettingsFragment : Fragment() {
                 .show()
         }
 
+        // --- About Section Configuration ---
         vb.cardAboutTitle.text = getString(R.string.settings_about_title)
+
+        // 1. Get app version safely
+        val version = try {
+            requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
+        } catch (e: Exception) {
+            "Unknown"
+        }
+
         val aboutText = getString(R.string.settings_about_text)
-        val version = ru.wizand.powerwatchdog.BuildConfig.VERSION_NAME
-//        vb.cardAboutText.text = "$aboutText\nv$version"
-
-        // 2. Ссылки
         val githubUrl = "https://github.com/wizand0/PowerWatchdog"
-        val feedbackUrl = "mailto:makandrei@gmail.com"
+        val feedbackUrl = "mailto:makandrei@gmail.com" // Email link format
 
-        // 3. Формируем HTML-строку
-        // <br> - перенос строки
-        // <b> - жирный текст
-        // <a href="..."> - активная ссылка
+        // 2. Format HTML content
         val htmlContent = """
-        $aboutText<br>
-        <b>Ver:</b> $version<br><br>
-        GitHub: <a href="$githubUrl">PowerWatchdog Repo</a><br>
-        Feedback: <a href="$feedbackUrl">Написать предложение</a>
-    """.trimIndent()
+            $aboutText<br>
+            <b>Ver:</b> $version<br><br>
+            GitHub: <a href="$githubUrl">PowerWatchdog Repo</a><br>
+            Feedback: <a href="$feedbackUrl">Написать предложение</a>
+        """.trimIndent()
 
-        // 4. Устанавливаем текст как HTML
-        vb.cardAboutText.text = androidx.core.text.HtmlCompat.fromHtml(
+        // 3. Set HTML to TextView
+        vb.cardAboutText.text = HtmlCompat.fromHtml(
             htmlContent,
-            androidx.core.text.HtmlCompat.FROM_HTML_MODE_COMPACT
+            HtmlCompat.FROM_HTML_MODE_COMPACT
         )
 
-        // 5. Делаем ссылки кликабельными
+        // 4. Make links clickable
         vb.cardAboutText.movementMethod = android.text.method.LinkMovementMethod.getInstance()
-
     }
 
     private fun isBotTokenValid(): Boolean {
@@ -140,7 +148,9 @@ class SettingsFragment : Fragment() {
     }
 
     private fun isChatIdValid(): Boolean {
-        return vb.editChatId.text.toString().isNotBlank()
+        // Valid if the parsed list is not empty
+        val raw = vb.editChatId.text.toString()
+        return raw.isNotBlank()
     }
 
     private fun validateTelegramSettings() {
@@ -153,7 +163,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun showValidationError() {
-        // Optional: Show a toast or snackbar if needed, but for now, just disable the switch
+        // Optional: Show a toast or snackbar
     }
 
     override fun onDestroyView() {
