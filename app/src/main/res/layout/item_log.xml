@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_margin="6dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -19,7 +20,8 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:layout_marginEnd="12dp"
-            android:contentDescription="icon"/>
+            android:contentDescription="icon"
+            tools:src="@drawable/ic_plug"/>
 
         <LinearLayout
             android:orientation="vertical"
@@ -32,13 +34,15 @@
                 android:textStyle="bold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="01.01.2025 12:00:00"/>
+                tools:text="01.01.2025 12:00:00"/>
 
             <TextView
                 android:id="@+id/tvDesc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Сеть отключена" />
+                android:ellipsize="end"
+                android:maxLines="2"
+                tools:text="Ошибка отправки Telegram: Timeout exception..." />
         </LinearLayout>
 
     </LinearLayout>

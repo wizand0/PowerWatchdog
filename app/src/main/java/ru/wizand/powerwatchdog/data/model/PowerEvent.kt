@@ -9,10 +9,13 @@ data class PowerEvent(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val type: PowerState,
-    val timestamp: Long
+    val timestamp: Long,
+    val message: String? = null // Новое поле для текста ошибки или деталей
 )
 
 enum class PowerState {
     CONNECTED,
-    DISCONNECTED
+    DISCONNECTED,
+    ERROR, // Ошибка выполнения операции (например, сбой отправки в Telegram)
+    INFO   // Информационное сообщение (например, старт сервиса)
 }

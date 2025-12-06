@@ -4,33 +4,30 @@ import android.Manifest
 import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.media.RingtoneManager
 import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
+import androidx.work.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import ru.wizand.powerwatchdog.R
 import ru.wizand.powerwatchdog.data.database.AppDatabase
 import ru.wizand.powerwatchdog.data.model.PowerEvent
-import ru.wizand.powerwatchdog.data.model.PowerState
 import ru.wizand.powerwatchdog.data.model.PowerSession
+import ru.wizand.powerwatchdog.data.model.PowerState
 import ru.wizand.powerwatchdog.data.repository.PowerRepository
 import ru.wizand.powerwatchdog.utils.Constants
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import android.content.pm.ServiceInfo
-import android.util.Log
-import kotlinx.coroutines.isActive
-import java.io.DataOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
+import ru.wizand.powerwatchdog.worker.TelegramSendWorker
+import java.util.concurrent.TimeUnit
 
 class PowerMonitorService : Service() {
 
@@ -42,7 +39,7 @@ class PowerMonitorService : Service() {
     private val heartbeatJob = Job()
     private val heartbeatScope = CoroutineScope(Dispatchers.IO + heartbeatJob)
 
-    data class SendResult(val success: Boolean, val message: String)
+    private var wakeLock: PowerManager.WakeLock? = null
 
     private val powerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -56,12 +53,16 @@ class PowerMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PowerWatchdog:AlertLock")
+
         startHeartbeat()
 
         val db = AppDatabase.getInstance(this)
         repository = PowerRepository(db.powerEventDao(), db.powerSessionDao())
 
-        // Close any open sessions from previous runs
+        // Close any open sessions
         serviceScope.launch {
             val allSessions = repository.getAllSessionsDesc().first()
             val openSessions = allSessions.filter { it.endTs == null }
@@ -119,8 +120,8 @@ class PowerMonitorService : Service() {
             val now = System.currentTimeMillis()
             serviceScope.launch {
                 currentSessionId = repository.insertSession(PowerSession(startTs = now))
-                val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit()
+                val prefsInternal = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+                prefsInternal.edit()
                     .putLong("current_session_id", currentSessionId!!)
                     .putLong("current_session_id_start", now)
                     .apply()
@@ -140,16 +141,57 @@ class PowerMonitorService : Service() {
         )
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val interval = 5 * 60 * 1000L
-        am.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + interval,
-            pi
-        )
+        val triggerTime = System.currentTimeMillis() + interval
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Для Android 12+ (API 31+) проверяем разрешение
+                if (am.canScheduleExactAlarms()) {
+                    // Разрешение есть — ставим точный будильник
+                    am.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pi
+                    )
+                } else {
+                    // Разрешения нет — ставим неточный будильник (он сохранит жизнь сервису, но не требует прав)
+                    am.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pi
+                    )
+                }
+            } else {
+                // Для старых версий Android (<12) ставим как обычно
+                am.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pi
+                )
+            }
+        } catch (e: SecurityException) {
+            // На случай, если разрешение было отозвано в момент выполнения
+            Log.e("PowerMonitorService", "SecurityException when setting alarm", e)
+            // Пытаемся поставить обычный неточный будильник как фолбэк
+            try {
+                am.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pi
+                )
+            } catch (ex: Exception) {
+                Log.e("PowerMonitorService", "Failed to set backup alarm", ex)
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         heartbeatJob.cancel()
+
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
 
         currentSessionId?.let { id ->
             val endTs = System.currentTimeMillis()
@@ -174,75 +216,74 @@ class PowerMonitorService : Service() {
 
     @RequiresPermission(Manifest.permission.VIBRATE)
     private fun handlePowerState(context: Context, state: PowerState) {
-        val ts = System.currentTimeMillis()
+        // Захват WakeLock важен, чтобы успеть записать в БД и поставить задачу в очередь
+        wakeLock?.acquire(60 * 1000L)
 
         serviceScope.launch {
-            repository.insert(PowerEvent(type = state, timestamp = ts))
-        }
+            try {
+                val ts = System.currentTimeMillis()
 
-        if (state == PowerState.CONNECTED) {
-            serviceScope.launch {
-                currentSessionId = repository.insertSession(PowerSession(startTs = ts))
-                val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit()
-                    .putLong("current_session_id", currentSessionId!!)
-                    .putLong("current_session_id_start", ts)
-                    .apply()
-            }
-        } else if (state == PowerState.DISCONNECTED) {
-            currentSessionId?.let { id ->
-                val startTs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE).getLong("current_session_id_start", 0)
-                val duration = (ts - startTs) / 1000
-                serviceScope.launch {
-                    repository.closeSession(id, ts, duration)
-                }
-                currentSessionId = null
-                val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-                prefs.edit()
-                    .remove("current_session_id")
-                    .remove("current_session_id_start")
-                    .apply()
-            }
+                // 1. Логика БД
+                repository.insert(PowerEvent(type = state, timestamp = ts))
 
-            val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-            if (prefs.getBoolean(Constants.PREF_SOUND, true)) {
-                try {
-                    val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                    RingtoneManager.getRingtone(applicationContext, uri).play()
-                } catch (_: Exception) {}
-            }
-            if (prefs.getBoolean(Constants.PREF_VIBRATE, true)) {
-                try {
-                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        vibrator.vibrate(500)
+                if (state == PowerState.CONNECTED) {
+                    currentSessionId = repository.insertSession(PowerSession(startTs = ts))
+                    val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs.edit()
+                        .putLong("current_session_id", currentSessionId!!)
+                        .putLong("current_session_id_start", ts)
+                        .apply()
+                } else if (state == PowerState.DISCONNECTED) {
+                    currentSessionId?.let { id ->
+                        val startTs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE).getLong("current_session_id_start", 0)
+                        val duration = (ts - startTs) / 1000
+                        repository.closeSession(id, ts, duration)
+                        currentSessionId = null
+                        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+                        prefs.edit()
+                            .remove("current_session_id")
+                            .remove("current_session_id_start")
+                            .apply()
                     }
-                } catch (_: Exception) {}
-            }
-        }
+                }
 
-        // Notification logic
-        val text = if (state == PowerState.CONNECTED) "ПИТАНИЕ: НОРМА" else "ПИТАНИЕ: ОТКЛЮЧЕНО!"
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(Constants.NOTIFICATION_ID, buildNotification(text))
+                // 2. Локальные уведомления (Звук/Вибрация)
+                if (state == PowerState.DISCONNECTED) {
+                    val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+                    if (prefs.getBoolean(Constants.PREF_SOUND, true)) {
+                        try {
+                            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                            RingtoneManager.getRingtone(applicationContext, uri).play()
+                        } catch (_: Exception) {}
+                    }
+                    if (prefs.getBoolean(Constants.PREF_VIBRATE, true)) {
+                        try {
+                            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                vibrator.vibrate(500)
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
 
-        // --- MULTI-CHAT TELEGRAM NOTIFICATION ---
-        val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
-        serviceScope.launch(Dispatchers.IO) {
-            val telegramEnabled = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
-            val botToken = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
-            val rawChatIds = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, "") ?: ""
+                val text = if (state == PowerState.CONNECTED) "ПИТАНИЕ: НОРМА" else "ПИТАНИЕ: ОТКЛЮЧЕНО!"
+                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.notify(Constants.NOTIFICATION_ID, buildNotification(text))
 
-            // Parse Chat IDs
-            val chatIds = rawChatIds.split(",", ";", " ", "\n")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
+                // 3. TELEGRAM VIA WORKMANAGER
+                val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
+                val telegramEnabled = prefs.getBoolean(Constants.PREF_TELEGRAM_ENABLED, false)
+                val botToken = prefs.getString(Constants.PREF_TELEGRAM_TOKEN, null)
+                val rawChatIds = prefs.getString(Constants.PREF_TELEGRAM_CHAT_ID, "") ?: ""
 
-            if (telegramEnabled && !botToken.isNullOrEmpty() && chatIds.isNotEmpty()) {
-                try {
+                val chatIds = rawChatIds.split(",", ";", " ", "\n")
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+
+                if (telegramEnabled && !botToken.isNullOrEmpty() && chatIds.isNotEmpty()) {
                     val formattedTime = java.text.SimpleDateFormat.getDateTimeInstance().format(java.util.Date(ts))
                     val message = if (state == PowerState.CONNECTED) {
                         getString(R.string.telegram_power_connected, formattedTime, android.os.Build.MODEL)
@@ -250,52 +291,43 @@ class PowerMonitorService : Service() {
                         getString(R.string.telegram_power_disconnected, formattedTime, android.os.Build.MODEL)
                     }
 
-                    // Send to all IDs
+                    // Создаем constraint: Требуется подключение к интернету
+                    val constraints = Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+
+                    val workManager = WorkManager.getInstance(applicationContext)
+
                     for (chatId in chatIds) {
-                        sendTelegramMessage(botToken, chatId, message)
+                        val data = workDataOf(
+                            TelegramSendWorker.KEY_BOT_TOKEN to botToken,
+                            TelegramSendWorker.KEY_CHAT_ID to chatId,
+                            TelegramSendWorker.KEY_MESSAGE to message
+                        )
+
+                        val request = OneTimeWorkRequest.Builder(TelegramSendWorker::class.java)
+                            .setConstraints(constraints)
+                            .setInputData(data)
+                            // Если неудача, первый повтор через 10 сек, потом 20, 30...
+                            .setBackoffCriteria(
+                                BackoffPolicy.LINEAR,
+                                10L,
+                                TimeUnit.SECONDS
+                            )
+                            .addTag("telegram_send")
+                            .build()
+
+                        workManager.enqueue(request)
                     }
-                } catch (e: Exception) {
-                    Log.e("PowerMonitorService", "Error sending Telegram message", e)
+                }
+
+            } catch (e: Exception) {
+                Log.e("PowerMonitorService", "Error in handlePowerState", e)
+            } finally {
+                if (wakeLock?.isHeld == true) {
+                    wakeLock?.release()
                 }
             }
-        }
-    }
-
-    private fun sendTelegramMessage(token: String, chatId: String, message: String): SendResult {
-        return try {
-            val url = URL("https://api.telegram.org/bot$token/sendMessage")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.apply {
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                doOutput = true
-                connectTimeout = 5000
-                readTimeout = 5000
-            }
-
-            val postData = "chat_id=$chatId&text=${java.net.URLEncoder.encode(message, "UTF-8")}"
-            conn.outputStream.use { os ->
-                DataOutputStream(os).use { dos ->
-                    dos.writeBytes(postData)
-                    dos.flush()
-                }
-            }
-
-            val responseCode = conn.responseCode
-            if (responseCode == 200) {
-                // Read response to clear stream
-                conn.inputStream.bufferedReader().use { it.readText() }
-                conn.disconnect()
-                SendResult(true, "OK")
-            } else {
-                val errorResponse = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "Unknown error"
-                Log.e("PowerMonitorService", "Error sending to $chatId: $responseCode - $errorResponse")
-                conn.disconnect()
-                SendResult(false, "HTTP $responseCode")
-            }
-        } catch (e: Exception) {
-            Log.e("PowerMonitorService", "Net error sending to $chatId", e)
-            SendResult(false, e.localizedMessage ?: "Error")
         }
     }
 
@@ -330,7 +362,6 @@ class PowerMonitorService : Service() {
     }
 
     fun stopServiceSelf() {
-        // Close sessions and clean up
         currentSessionId?.let { id ->
             val endTs = System.currentTimeMillis()
             val startTs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE).getLong("current_session_id_start", 0)
@@ -347,6 +378,10 @@ class PowerMonitorService : Service() {
             remove("current_session_id")
             remove("current_session_id_start")
             apply()
+        }
+
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
         }
 
         stopForeground(true)

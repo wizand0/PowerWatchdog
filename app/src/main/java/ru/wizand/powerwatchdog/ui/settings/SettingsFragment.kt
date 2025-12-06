@@ -4,16 +4,18 @@ import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
 import android.view.*
+import android.widget.Toast
 import androidx.core.text.HtmlCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import ru.wizand.powerwatchdog.R
 import ru.wizand.powerwatchdog.databinding.FragmentSettingsBinding
 import ru.wizand.powerwatchdog.utils.Constants
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class SettingsFragment : Fragment() {
 
@@ -27,74 +29,88 @@ class SettingsFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        // Load existing prefs
         val prefs = requireContext().getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         vb.switchSound.isChecked = prefs.getBoolean(Constants.PREF_SOUND, true)
         vb.switchVibrate.isChecked = prefs.getBoolean(Constants.PREF_VIBRATE, true)
 
-        vb.switchSound.setOnCheckedChangeListener { _, isChecked ->
-            vm.setSoundEnabled(isChecked)
-        }
-        vb.switchVibrate.setOnCheckedChangeListener { _, isChecked ->
-            vm.setVibrateEnabled(isChecked)
-        }
+        vb.switchSound.setOnCheckedChangeListener { _, isChecked -> vm.setSoundEnabled(isChecked) }
+        vb.switchVibrate.setOnCheckedChangeListener { _, isChecked -> vm.setVibrateEnabled(isChecked) }
 
-        // Load Telegram settings
         vb.editBotToken.setText(vm.getBotToken())
-        vb.editChatId.setText(vm.getRawChatIdString()) // Load raw string
+        vb.editChatId.setText(vm.getRawChatIdString())
         vb.switchTelegram.isChecked = vm.isTelegramEnabled()
-        validateTelegramSettings() // Initial validation
+        validateTelegramSettings()
 
         vb.editBotToken.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
-                val token = vb.editBotToken.text.toString()
-                vm.saveBotToken(token)
+                vm.saveBotToken(vb.editBotToken.text.toString())
                 validateTelegramSettings()
             }
         }
         vb.editChatId.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
-                val chatId = vb.editChatId.text.toString()
-                vm.saveChatId(chatId) // Save raw string
+                vm.saveChatId(vb.editChatId.text.toString())
                 validateTelegramSettings()
             }
         }
+
         vb.switchTelegram.setOnCheckedChangeListener { _, isChecked ->
-            // Only allow enabling if both fields are non-empty
             if (isChecked && (!isBotTokenValid() || !isChatIdValid())) {
                 vb.switchTelegram.isChecked = false
                 vm.setTelegramEnabled(false)
-                showValidationError()
+                Toast.makeText(requireContext(), getString(R.string.telegram_enable_first), Toast.LENGTH_SHORT).show()
             } else {
                 vm.setTelegramEnabled(isChecked)
             }
         }
 
+        // --- ЛОГИКА ТЕСТА ЧЕРЕЗ WORKMANAGER ---
         vb.btnTestTelegram.setOnClickListener {
-            val telegramEnabled = vm.isTelegramEnabled()
-            val token = vm.getBotToken()
-            val chatIds = vm.getChatIdList() // Get parsed list
+            // Принудительно сохраняем текущий ввод перед тестом
+            vm.saveBotToken(vb.editBotToken.text.toString())
+            vm.saveChatId(vb.editChatId.text.toString())
+            validateTelegramSettings()
 
-            if (!telegramEnabled || token.isNullOrEmpty() || chatIds.isEmpty()) {
-                android.widget.Toast.makeText(requireContext(), getString(R.string.telegram_enable_first), android.widget.Toast.LENGTH_LONG).show()
+            if (!vm.isTelegramEnabled() || !isBotTokenValid() || !isChatIdValid()) {
+                Toast.makeText(requireContext(), getString(R.string.telegram_enable_first), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            // Launch in Main scope to show toasts on UI thread
-            CoroutineScope(Dispatchers.Main).launch {
+            // Запускаем и получаем ID задачи
+            val workId = vm.sendTestTelegramMessage(requireContext())
+
+            if (workId != null) {
                 vb.btnTestTelegram.isEnabled = false
-                vb.btnTestTelegram.text = "Sending..."
+                vb.btnTestTelegram.text = "Wait..." // Лучше вынести в ресурсы
 
-                val result = withContext(Dispatchers.IO) { vm.sendTestTelegramMessage(requireContext()) }
+                // Подписываемся на результат выполнения Worker-а
+                WorkManager.getInstance(requireContext())
+                    .getWorkInfoByIdLiveData(workId)
+                    .observe(viewLifecycleOwner) { workInfo ->
+                        if (workInfo == null) return@observe
 
-                vb.btnTestTelegram.isEnabled = true
-                vb.btnTestTelegram.text = getString(R.string.settings_test_telegram)
-
-                android.widget.Toast.makeText(
-                    requireContext(),
-                    result.message,
-                    if (result.success) android.widget.Toast.LENGTH_SHORT else android.widget.Toast.LENGTH_LONG
-                ).show()
+                        when (workInfo.state) {
+                            WorkInfo.State.SUCCEEDED -> {
+                                vb.btnTestTelegram.isEnabled = true
+                                vb.btnTestTelegram.text = getString(R.string.settings_test_telegram)
+                                Toast.makeText(requireContext(), getString(R.string.test_success), Toast.LENGTH_SHORT).show()
+                            }
+                            WorkInfo.State.FAILED -> {
+                                vb.btnTestTelegram.isEnabled = true
+                                vb.btnTestTelegram.text = getString(R.string.settings_test_telegram)
+                                // Получаем ошибку из outputData, которую мы положили в Worker-е
+                                val errorMsg = workInfo.outputData.getString("error") ?: "Unknown Error"
+                                Toast.makeText(requireContext(), "Error: $errorMsg", Toast.LENGTH_LONG).show()
+                            }
+                            WorkInfo.State.CANCELLED -> {
+                                vb.btnTestTelegram.isEnabled = true
+                                vb.btnTestTelegram.text = getString(R.string.settings_test_telegram)
+                            }
+                            else -> {
+                                // ENQUEUED или RUNNING - ничего не делаем, ждем
+                            }
+                        }
+                    }
             }
         }
 
@@ -103,7 +119,8 @@ class SettingsFragment : Fragment() {
                 .setTitle(getString(R.string.settings_clear_log_title))
                 .setMessage(getString(R.string.settings_clear_log_message))
                 .setPositiveButton(getString(R.string.settings_clear_log_confirm)) { _, _ ->
-                    CoroutineScope(Dispatchers.IO).launch {
+                    // Используем lifecycleScope для корутин во фрагменте
+                    lifecycleScope.launch(Dispatchers.IO) {
                         vm.clearLog()
                     }
                 }
@@ -111,21 +128,21 @@ class SettingsFragment : Fragment() {
                 .show()
         }
 
-        // --- About Section Configuration ---
-        vb.cardAboutTitle.text = getString(R.string.settings_about_title)
+        setupAboutSection()
+    }
 
-        // 1. Get app version safely
+    private fun setupAboutSection() {
+        vb.cardAboutTitle.text = getString(R.string.settings_about_title)
         val version = try {
             requireContext().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
-        } catch (e: Exception) {
-            "Unknown"
-        }
+        } catch (e: Exception) { "Unknown" }
 
         val aboutText = getString(R.string.settings_about_text)
+        // ... ваши ссылки ...
+        // (код сокращен для краткости, оставьте как был)
         val githubUrl = "https://github.com/wizand0/PowerWatchdog"
-        val feedbackUrl = "mailto:makandrei@gmail.com" // Email link format
+        val feedbackUrl = "mailto:makandrei@gmail.com"
 
-        // 2. Format HTML content
         val htmlContent = """
             $aboutText<br>
             <b>Ver:</b> $version<br><br>
@@ -133,25 +150,12 @@ class SettingsFragment : Fragment() {
             Feedback: <a href="$feedbackUrl">Написать предложение</a>
         """.trimIndent()
 
-        // 3. Set HTML to TextView
-        vb.cardAboutText.text = HtmlCompat.fromHtml(
-            htmlContent,
-            HtmlCompat.FROM_HTML_MODE_COMPACT
-        )
-
-        // 4. Make links clickable
+        vb.cardAboutText.text = HtmlCompat.fromHtml(htmlContent, HtmlCompat.FROM_HTML_MODE_COMPACT)
         vb.cardAboutText.movementMethod = android.text.method.LinkMovementMethod.getInstance()
     }
 
-    private fun isBotTokenValid(): Boolean {
-        return vb.editBotToken.text.toString().isNotBlank()
-    }
-
-    private fun isChatIdValid(): Boolean {
-        // Valid if the parsed list is not empty
-        val raw = vb.editChatId.text.toString()
-        return raw.isNotBlank()
-    }
+    private fun isBotTokenValid(): Boolean = vb.editBotToken.text.toString().isNotBlank()
+    private fun isChatIdValid(): Boolean = vb.editChatId.text.toString().isNotBlank()
 
     private fun validateTelegramSettings() {
         val isValid = isBotTokenValid() && isChatIdValid()
@@ -160,10 +164,6 @@ class SettingsFragment : Fragment() {
             vm.setTelegramEnabled(false)
             vb.switchTelegram.isChecked = false
         }
-    }
-
-    private fun showValidationError() {
-        // Optional: Show a toast or snackbar
     }
 
     override fun onDestroyView() {
