@@ -32,7 +32,10 @@ import java.util.concurrent.TimeUnit
 class PowerMonitorService : Service() {
 
     private val binder = LocalBinder()
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob + CoroutineExceptionHandler { _, e ->
+        Log.e("PowerMonitorService", "Coroutine exception", e)
+    })
     private lateinit var repository: PowerRepository
     private var currentSessionId: Long? = null
 
@@ -40,6 +43,8 @@ class PowerMonitorService : Service() {
     private val heartbeatScope = CoroutineScope(Dispatchers.IO + heartbeatJob)
 
     private var wakeLock: PowerManager.WakeLock? = null
+
+
 
     private val powerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -187,6 +192,7 @@ class PowerMonitorService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceJob.cancel()
         heartbeatJob.cancel()
 
         if (wakeLock?.isHeld == true) {
@@ -392,7 +398,7 @@ class PowerMonitorService : Service() {
         val prefs = getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
         heartbeatScope.launch {
             while (isActive) {
-                prefs.edit().putLong("pref_last_heartbeat_ts", System.currentTimeMillis()).commit()
+                prefs.edit().putLong("pref_last_heartbeat_ts", System.currentTimeMillis()).apply()
                 kotlinx.coroutines.delay(30_000)
             }
         }

@@ -13,6 +13,10 @@
         android:name="ru.wizand.powerwatchdog.ui.log.LogFragment"
         android:label="Logs" />
     <fragment
+        android:id="@+id/statusFragment"
+        android:name="ru.wizand.powerwatchdog.ui.statuses.StatusFragment"
+        android:label="Statuses" />
+    <fragment
         android:id="@+id/settingsFragment"
         android:name="ru.wizand.powerwatchdog.ui.settings.SettingsFragment"
         android:label="Settings" />

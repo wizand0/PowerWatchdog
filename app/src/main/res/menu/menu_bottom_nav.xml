@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_list"
         android:title="Logs" />
     <item
+        android:id="@+id/statusFragment"
+        android:icon="@drawable/ic_shield"
+        android:title="Statuses" />
+    <item
         android:id="@+id/settingsFragment"
         android:icon="@drawable/ic_settings"
         android:title="Settings" />
